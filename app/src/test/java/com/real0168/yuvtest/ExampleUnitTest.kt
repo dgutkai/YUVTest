@@ -1,4 +1,4 @@
-package com.real0168.baseproject
+package com.real0168.yuvtest
 
 import org.junit.Test
 

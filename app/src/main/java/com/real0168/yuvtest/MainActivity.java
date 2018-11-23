@@ -1,4 +1,4 @@
-package com.real0168.baseproject;
+package com.real0168.yuvtest;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -10,16 +10,18 @@ import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.Camera;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
+import android.util.Log;
+import android.view.View;
 import android.widget.ImageView;
 
 import com.real0168.base.BaseActivity;
+import com.real0168.base.BaseApplication;
+import com.real0168.yuvtest.utils.Util;
+
+import org.easydarwin.easyipcamera.camera.MediaStream;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -32,6 +34,7 @@ public class MainActivity extends BaseActivity implements Camera.PreviewCallback
     private ImageView imageView;
     private final int WIDHT = 480;
     private final int HEIGHT = 640;
+    MediaStream mMediaStream;
     @Override
     public int getLayoutID() {
         return R.layout.activity_main;
@@ -65,7 +68,7 @@ public class MainActivity extends BaseActivity implements Camera.PreviewCallback
 
         mCamera.setDisplayOrientation(displayRotation);
 
-
+        mMediaStream = new MediaStream(getApplicationContext());
 //        mSurfaceView=(SurfaceView)findViewById(R.id.id_surface_view_unlock);//获取surfaceView控件
 //        mSurfaceHolder=mSurfaceView.getHolder();//获取holder参数
 //        mSurfaceHolder.addCallback(new SurfaceHolderCB());//设置holder的回调
@@ -146,7 +149,8 @@ public class MainActivity extends BaseActivity implements Camera.PreviewCallback
                 * ImageFormat.getBitsPerPixel(previewFormat)
                 / 8;
         mCamera.addCallbackBuffer(new byte[size]);
-        mCamera.setPreviewCallbackWithBuffer(this);
+//        mCamera.setPreviewCallbackWithBuffer(this);
+        mCamera.setPreviewCallback(mMediaStream.previewCallback);
     }
 
 
@@ -211,5 +215,15 @@ public class MainActivity extends BaseActivity implements Camera.PreviewCallback
             }
         }
         return yuv;
+    }
+
+    public void startChannel(View view) {
+
+        String ip = Util.getLocalIpAddress();
+        String port = BaseApplication.getEasyApplication().getPort();
+        String id = BaseApplication.getEasyApplication().getId();
+        Log.e("TAG", String.format("rtsp://%s:%s/%s", ip, port, id));
+        mMediaStream.startChannel(ip, port, id);
+
     }
 }

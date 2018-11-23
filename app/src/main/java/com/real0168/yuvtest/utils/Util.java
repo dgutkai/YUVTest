@@ -5,7 +5,7 @@
 	Website: http://www.easydarwin.org
 */
 
-package com.real0168.baseproject;
+package com.real0168.yuvtest.utils;
 
 import android.content.Context;
 import android.content.Intent;
@@ -15,6 +15,12 @@ import android.net.wifi.WifiManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 import android.util.Log;
+
+import com.real0168.base.BaseApplication;
+import com.real0168.yuvtest.config.Config;
+import com.real0168.yuvtest.view.StatusInfoView;
+
+import org.easydarwin.easyipcamera.sw.JNIUtil;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -57,10 +63,8 @@ public class Util {
         for (int x = imageWidth - 1; x > 0; x = x - 2) {
             for (int y = 0; y < imageHeight / 2; y++) {
                 yuv[i] = data[(imageWidth * imageHeight) + (y * imageWidth) + x];
-//                yuv[i] = 0;
                 i--;
                 yuv[i] = data[(imageWidth * imageHeight) + (y * imageWidth) + (x - 1)];
-//                yuv[i] = 0;
                 i--;
             }
         }
@@ -157,48 +161,30 @@ public class Util {
         return dst;
     }
 
-    public static void rotateNV210(byte[] data, int imageWidth, int imageHeight) {
-//        byte[] yuv = new byte[imageWidth * imageHeight * 3 / 2];
-        // Rotate the Y luma
-        int i = 0;
-        for (int x = 0; x < imageWidth; x++) {
-            for (int y = imageHeight - 1; y >= 0; y--) {
-                data[y * imageWidth + x] = (byte) (255 - data[y * imageWidth + x]);
-            }
+    /**
+     * 旋转YUV格式数据
+     *
+     * @param src    YUV数据
+     * @param format 0，420P；1，420SP
+     * @param width  宽度
+     * @param height 高度
+     * @param degree 旋转度数
+     */
+    public static void yuvRotate(byte[] src, int format, int width, int height, int degree) {
+        int offset = 0;
+        if (format == 0) {
+            JNIUtil.rotateMatrix(src, offset, width, height, degree);
+            offset += (width * height);
+            JNIUtil.rotateMatrix(src, offset, width / 2, height / 2, degree);
+            offset += width * height / 4;
+            JNIUtil.rotateMatrix(src, offset, width / 2, height / 2, degree);
+        } else if (format == 1) {
+            JNIUtil.rotateMatrix(src, offset, width, height, degree);
+            offset += width * height;
+            JNIUtil.rotateShortMatrix(src, offset, width / 2, height / 2, degree);
         }
     }
-    public static byte[] NV21_rotate_to_90(byte[] nv21_data, int width, int height) {
-        int y_size = width * height;
-        int buffser_size = y_size * 3 / 2;
-        byte[] nv21_rotated = new byte[buffser_size];
-        // Rotate the Y luma
 
-
-        int i = 0;
-        int startPos = (height - 1) * width;
-        for (int x = 0; x < width; x++) {
-            int offset = startPos;
-            for (int y = height - 1; y >= 0; y--) {
-                nv21_rotated[i] = nv21_data[offset + x];
-                i++;
-                offset -= width;
-            }
-        }
-
-        // Rotate the U and V color components
-        i = buffser_size - 1;
-        for (int x = width - 1; x > 0; x = x - 2) {
-            int offset = y_size;
-            for (int y = 0; y < height / 2; y++) {
-                nv21_rotated[i] = nv21_data[offset + x];
-                i--;
-                nv21_rotated[i] = nv21_data[offset + (x - 1)];
-                i--;
-                offset += width;
-            }
-        }
-        return nv21_rotated;
-    }
     /**
      * 保存数据到本地
      *
@@ -229,25 +215,34 @@ public class Util {
         }
     }
 
-//    public static List<String> getSupportResolution(Context context){
-//        List<String> resolutions=new ArrayList<>();
-//        SharedPreferences sharedPreferences=context.getSharedPreferences(Config.PREF_NAME, Context.MODE_PRIVATE);
-//        String r=sharedPreferences.getString(Config.K_RESOLUTION, "");
-//        if(!TextUtils.isEmpty(r)){
-//            String[] arr=r.split(";");
-//            if(arr.length>0){
-//                resolutions= Arrays.asList(arr);
-//            }
-//        }
-//
-//        return resolutions;
-//    }
+    /**
+     * 获取摄像头支持的分辨率
+     * @param context
+     * @return
+     */
+    public static List<String> getSupportResolution(Context context){
+        List<String> resolutions=new ArrayList<>();
+        SharedPreferences sharedPreferences=context.getSharedPreferences(Config.PREF_NAME, Context.MODE_PRIVATE);
+        String r=sharedPreferences.getString(Config.K_RESOLUTION, "");
+        if(!TextUtils.isEmpty(r)){
+            String[] arr=r.split(";");
+            if(arr.length>0){
+                resolutions= Arrays.asList(arr);
+            }
+        }
 
+        return resolutions;
+    }
 
-//    public static void saveSupportResolution(Context context, String value){
-//        SharedPreferences sharedPreferences=context.getSharedPreferences(Config.PREF_NAME, Context.MODE_PRIVATE);
-//        sharedPreferences.edit().putString(Config.K_RESOLUTION, value).commit();
-//    }
+    /**
+     * 保存支持分辨率
+     * @param context
+     * @param value
+     */
+    public static void saveSupportResolution(Context context, String value){
+        SharedPreferences sharedPreferences=context.getSharedPreferences(Config.PREF_NAME, Context.MODE_PRIVATE);
+        sharedPreferences.edit().putString(Config.K_RESOLUTION, value).commit();
+    }
 
     private static String intToIp(int i) {
         return (i & 0xFF ) + "." +
@@ -256,5 +251,43 @@ public class Util {
                 ( i >> 24 & 0xFF) ;
     }
 
+    /**
+     * 获取IP地址
+     */
+    public static String getLocalIpAddress() {
+        //获取wifi服务
+        WifiManager wifiManager = (WifiManager) BaseApplication.getEasyApplication().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        //判断wifi是否开启
+        if (wifiManager.isWifiEnabled()) {
+            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+            int ipAddress = wifiInfo.getIpAddress();
+            String ip = intToIp(ipAddress);
+            return ip;
+        } else {
+            try {
+                for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                    NetworkInterface intf = en.nextElement();
+                    for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                        InetAddress inetAddress = enumIpAddr.nextElement();
+                        if (!inetAddress.isLoopbackAddress()) {
+                            return inetAddress.getHostAddress().toString();
+                        }
+                    }
+                }
+            } catch (SocketException ex) {
+                Log.e("getLocalIpAddress", ex.toString());
+            }
+            return null;
+        }
+    }
 
+    /**
+     * 显示视频debug信息
+     */
+    public static void showDbgMsg(String level, String data){
+        Intent intent = new Intent(StatusInfoView.DBG_MSG);
+        intent.putExtra(StatusInfoView.DBG_LEVEL, level);
+        intent.putExtra(StatusInfoView.DBG_DATA, data);
+        LocalBroadcastManager.getInstance(BaseApplication.getEasyApplication()).sendBroadcast(intent);
+    }
 }
